@@ -18,11 +18,12 @@ class DrivingViewModel(private val drivingDao: DrivingDao) : ViewModel() {
             initialValue = emptyList()
         )
 
-    fun addEntry(name: String, date: String, time: String, rideCount: Int, km: Double, amount: Double) {
+    fun addEntry(name: String, phoneNumber: String, date: String, time: String, rideCount: Int, km: Double, amount: Double) {
         viewModelScope.launch {
             drivingDao.insertEntry(
                 DrivingEntry(
                     name = name,
+                    phoneNumber = phoneNumber,
                     date = date,
                     time = time,
                     rideCount = rideCount,

@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class DrivingEntry(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
+    val phoneNumber: String = "",
     val date: String,
     val time: String,
     val rideCount: Int,

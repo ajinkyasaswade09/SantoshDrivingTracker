@@ -2,10 +2,13 @@ package com.ajinkya.santoshdrivingtracker.ui
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CurrencyRupee
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -140,13 +144,65 @@ fun DashboardScreen(
                     )
                 }
                 items(entries) { entry ->
-                    DrivingEntryItem(
+                    SwipeableDrivingEntryItem(
                         entry = entry,
                         onDelete = { entryToDelete = entry }
                     )
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeableDrivingEntryItem(entry: DrivingEntry, onDelete: () -> Unit) {
+    val context = LocalContext.current
+    val swipeState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.StartToEnd) {
+                if (entry.phoneNumber.isNotBlank()) {
+                    val intent = Intent(Intent.ACTION_DIAL).apply {
+                        data = Uri.parse("tel:${entry.phoneNumber}")
+                    }
+                    context.startActivity(intent)
+                }
+                false // Do not dismiss the item
+            } else {
+                false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = swipeState,
+        enableDismissFromEndToStart = false,
+        backgroundContent = {
+            val color by animateColorAsState(
+                when (swipeState.targetValue) {
+                    SwipeToDismissBoxValue.StartToEnd -> PrimaryBlue.copy(alpha = 0.8f)
+                    else -> Color.Transparent
+                }, label = "bg"
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(color)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (swipeState.targetValue == SwipeToDismissBoxValue.StartToEnd) {
+                    Icon(
+                        Icons.Default.Call,
+                        contentDescription = "Call",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    ) {
+        DrivingEntryItem(entry = entry, onDelete = onDelete)
     }
 }
 
@@ -172,16 +228,15 @@ private fun exportToCsv(context: Context, entries: List<DrivingEntry>) {
             uri?.let {
                 resolver.openOutputStream(it)?.use { outputStream ->
                     OutputStreamWriter(outputStream).use { writer ->
-                        writer.write("ID,Driver Name,Date,Time,Ride Count,Distance (KM),Amount (INR)\n")
+                        writer.write("ID,Driver Name,Phone Number,Date,Time,Ride Count,Distance (KM),Amount (INR)\n")
                         for (entry in entries) {
-                            writer.write("${entry.id},${entry.name},${entry.date},${entry.time},${entry.rideCount},${entry.km},${entry.amount}\n")
+                            writer.write("${entry.id},${entry.name},${entry.phoneNumber},${entry.date},${entry.time},${entry.rideCount},${entry.km},${entry.amount}\n")
                         }
                     }
                 }
                 Toast.makeText(context, "File saved to Downloads/SantoshDrivingTracker", Toast.LENGTH_LONG).show()
             } ?: throw Exception("Failed to create file")
         } else {
-            // For older versions
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val appDir = File(downloadsDir, "SantoshDrivingTracker")
             if (!appDir.exists()) appDir.mkdirs()
@@ -189,9 +244,9 @@ private fun exportToCsv(context: Context, entries: List<DrivingEntry>) {
             val file = File(appDir, fileName)
             FileOutputStream(file).use { outputStream ->
                 OutputStreamWriter(outputStream).use { writer ->
-                    writer.write("ID,Driver Name,Date,Time,Ride Count,Distance (KM),Amount (INR)\n")
+                    writer.write("ID,Driver Name,Phone Number,Date,Time,Ride Count,Distance (KM),Amount (INR)\n")
                     for (entry in entries) {
-                        writer.write("${entry.id},${entry.name},${entry.date},${entry.time},${entry.rideCount},${entry.km},${entry.amount}\n")
+                        writer.write("${entry.id},${entry.name},${entry.phoneNumber},${entry.date},${entry.time},${entry.rideCount},${entry.km},${entry.amount}\n")
                     }
                 }
             }
@@ -324,6 +379,8 @@ fun EmptyDashboard(modifier: Modifier = Modifier) {
 
 @Composable
 fun DrivingEntryItem(entry: DrivingEntry, onDelete: () -> Unit) {
+    val context = LocalContext.current
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -354,13 +411,33 @@ fun DrivingEntryItem(entry: DrivingEntry, onDelete: () -> Unit) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = entry.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = DarkGrey
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = entry.name,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = DarkGrey
+                        )
                     )
-                )
+                    if (entry.phoneNumber.isNotBlank()) {
+                        IconButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_DIAL).apply {
+                                    data = Uri.parse("tel:${entry.phoneNumber}")
+                                }
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = "Call",
+                                tint = PrimaryBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Event,

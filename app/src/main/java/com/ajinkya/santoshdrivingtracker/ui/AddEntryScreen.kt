@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CurrencyRupee
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
@@ -35,6 +36,7 @@ fun AddEntryScreen(
     onNavigateBack: () -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var date by remember { mutableStateOf("") }
     var time by remember { mutableStateOf("") }
     var rideCount by remember { mutableStateOf("") }
@@ -53,7 +55,8 @@ fun AddEntryScreen(
     )
     val timePickerState = rememberTimePickerState()
 
-    val isFormValid = name.isNotBlank() && date.isNotBlank() && km.isNotBlank() && amount.isNotBlank()
+    val isPhoneNumberValid = phoneNumber.length == 10 && phoneNumber.all { it.isDigit() }
+    val isFormValid = name.isNotBlank() && isPhoneNumberValid && date.isNotBlank() && km.isNotBlank() && amount.isNotBlank()
 
     // Handle Date Selection
     if (showDatePicker) {
@@ -171,6 +174,15 @@ fun AddEntryScreen(
                         placeholder = "Enter driver name"
                     )
 
+                    CustomTextField(
+                        value = phoneNumber,
+                        onValueChange = { if (it.length <= 10) phoneNumber = it },
+                        label = "Phone Number",
+                        icon = Icons.Default.Phone,
+                        placeholder = "10-digit number",
+                        keyboardType = KeyboardType.Phone
+                    )
+
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CustomTextField(
                             value = date,
@@ -234,6 +246,7 @@ fun AddEntryScreen(
                     if (isFormValid) {
                         viewModel.addEntry(
                             name = name,
+                            phoneNumber = phoneNumber,
                             date = date,
                             time = time,
                             rideCount = rideCount.toIntOrNull() ?: 0,
