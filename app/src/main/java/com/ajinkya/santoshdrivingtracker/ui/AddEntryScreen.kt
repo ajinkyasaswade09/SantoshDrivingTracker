@@ -209,7 +209,12 @@ fun AddEntryScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CustomTextField(
                             value = rideCount,
-                            onValueChange = { rideCount = it },
+                            onValueChange = { 
+                                rideCount = it
+                                it.toIntOrNull()?.let { count ->
+                                    amount = (count * 100).toString()
+                                }
+                            },
                             label = "Ride Count",
                             icon = Icons.Default.DirectionsCar,
                             placeholder = "0",
