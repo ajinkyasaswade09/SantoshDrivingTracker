@@ -9,6 +9,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ajinkya.santoshdrivingtracker.data.DrivingEntry
 import com.ajinkya.santoshdrivingtracker.ui.theme.*
 import java.io.File
@@ -40,7 +42,7 @@ import java.io.FileOutputStream
 import java.io.OutputStreamWriter
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(
     viewModel: DrivingViewModel,
@@ -117,6 +119,10 @@ fun DashboardScreen(
         },
         containerColor = BackgroundLight
     ) { paddingValues ->
+        val groupedEntries = remember(entries) {
+            entries.groupBy { it.phoneNumber }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -133,21 +139,69 @@ fun DashboardScreen(
                     EmptyDashboard(modifier = Modifier.fillParentMaxHeight(0.7f))
                 }
             } else {
-                item {
-                    Text(
-                        text = "Recent Activity",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = DarkGrey
-                        ),
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-                items(entries) { entry ->
-                    SwipeableDrivingEntryItem(
-                        entry = entry,
-                        onDelete = { entryToDelete = entry }
-                    )
+                groupedEntries.forEach { (phoneNumber, phoneEntries) ->
+                    val driverName = phoneEntries.firstOrNull()?.name ?: "Unknown"
+                    
+                    stickyHeader {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = BackgroundLight
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(vertical = 8.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = driverName,
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = PrimaryBlue,
+                                            fontSize = 18.sp
+                                        )
+                                    )
+                                    if (!phoneNumber.isNullOrBlank()) {
+                                        Text(
+                                            text = phoneNumber,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = LightGrey,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                    }
+                                }
+                                
+                                val groupTotal = phoneEntries.sumOf { it.amount }
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = PrimaryBlue.copy(alpha = 0.1f)
+                                ) {
+                                    Text(
+                                        text = "Total: ₹${groupTotal.toInt()}",
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = PrimaryBlue
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    items(phoneEntries) { entry ->
+                        SwipeableDrivingEntryItem(
+                            entry = entry,
+                            onDelete = { entryToDelete = entry }
+                        )
+                    }
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
         }
@@ -167,7 +221,7 @@ fun SwipeableDrivingEntryItem(entry: DrivingEntry, onDelete: () -> Unit) {
                     }
                     context.startActivity(intent)
                 }
-                false // Do not dismiss the item
+                false
             } else {
                 false
             }
@@ -379,8 +433,6 @@ fun EmptyDashboard(modifier: Modifier = Modifier) {
 
 @Composable
 fun DrivingEntryItem(entry: DrivingEntry, onDelete: () -> Unit) {
-    val context = LocalContext.current
-    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -411,33 +463,7 @@ fun DrivingEntryItem(entry: DrivingEntry, onDelete: () -> Unit) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = entry.name,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = DarkGrey
-                        )
-                    )
-                    if (entry.phoneNumber.isNotBlank()) {
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_DIAL).apply {
-                                    data = Uri.parse("tel:${entry.phoneNumber}")
-                                }
-                                context.startActivity(intent)
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Call,
-                                contentDescription = "Call",
-                                tint = PrimaryBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
+                // Name and Call moved to Header, keeping Time/Date here
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Event,
