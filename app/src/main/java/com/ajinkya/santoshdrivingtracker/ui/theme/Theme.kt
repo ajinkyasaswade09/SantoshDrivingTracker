@@ -1,6 +1,5 @@
 package com.ajinkya.santoshdrivingtracker.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -16,13 +15,16 @@ private val DarkColorScheme = darkColorScheme(
     primary = PrimaryBlue,
     secondary = SecondaryBlue,
     tertiary = AccentOrange,
-    background = DarkGrey,
-    surface = DarkGrey,
+    background = Color(0xFF121212),
+    surface = Color(0xFF1E1E1E),
     onPrimary = Color.White,
     onSecondary = PrimaryBlue,
     onTertiary = Color.White,
     onBackground = Color.White,
-    onSurface = Color.White
+    onSurface = Color.White,
+    onSurfaceVariant = Color(0xFFB0B0B0),
+    outline = Color(0xFF333333),
+    surfaceVariant = Color(0xFF2C2C2C)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -35,14 +37,16 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = PrimaryBlue,
     onTertiary = Color.White,
     onBackground = DarkGrey,
-    onSurface = DarkGrey
+    onSurface = DarkGrey,
+    onSurfaceVariant = LightGrey,
+    outline = SecondaryBlue,
+    surfaceVariant = BackgroundLight
 )
 
 @Composable
 fun SantoshDrivingTrackerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false, // Set to false to prioritize our custom brand colors
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

@@ -1,7 +1,21 @@
 package com.ajinkya.santoshdrivingtracker.ui
 
+import android.annotation.SuppressLint
+import android.net.Uri
+import android.provider.ContactsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,32 +23,60 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ContactPage
 import androidx.compose.material.icons.filled.CurrencyRupee
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.ajinkya.santoshdrivingtracker.ui.theme.*
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
+@SuppressLint("Range")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEntryScreen(
     viewModel: DrivingViewModel,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var date by remember { mutableStateOf("") }
@@ -46,6 +88,42 @@ fun AddEntryScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
+    val contactLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { contactUri: Uri? ->
+        contactUri?.let { uri ->
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID))
+                    val hasPhoneNumber =
+                        cursor.getInt(cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER))
+
+                    if (hasPhoneNumber > 0) {
+                        context.contentResolver.query(
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            null,
+                            ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                            arrayOf(id),
+                            null
+                        )?.use { phoneCursor ->
+                            if (phoneCursor.moveToFirst()) {
+                                val number = phoneCursor.getString(
+                                    phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                                )
+                                val cleanNumber = number.replace(Regex("[^0-9]"), "")
+                                phoneNumber = if (cleanNumber.length >= 10) {
+                                    cleanNumber.takeLast(10)
+                                } else {
+                                    cleanNumber
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     val datePickerState = rememberDatePickerState(
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
@@ -56,9 +134,9 @@ fun AddEntryScreen(
     val timePickerState = rememberTimePickerState()
 
     val isPhoneNumberValid = phoneNumber.length == 10 && phoneNumber.all { it.isDigit() }
-    val isFormValid = name.isNotBlank() && isPhoneNumberValid && date.isNotBlank() && km.isNotBlank() && amount.isNotBlank()
+    val isFormValid =
+        name.isNotBlank() && isPhoneNumberValid && date.isNotBlank() && km.isNotBlank() && amount.isNotBlank()
 
-    // Handle Date Selection
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -79,7 +157,6 @@ fun AddEntryScreen(
         }
     }
 
-    // Handle Time Selection
     if (showTimePicker) {
         Dialog(onDismissRequest = { showTimePicker = false }) {
             Surface(
@@ -98,13 +175,17 @@ fun AddEntryScreen(
                     )
                     TimePicker(state = timePickerState)
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp),
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
                         TextButton(onClick = {
-                            val hour = if (timePickerState.hour < 10) "0${timePickerState.hour}" else "${timePickerState.hour}"
-                            val minute = if (timePickerState.minute < 10) "0${timePickerState.minute}" else "${timePickerState.minute}"
+                            val hour =
+                                if (timePickerState.hour < 10) "0${timePickerState.hour}" else "${timePickerState.hour}"
+                            val minute =
+                                if (timePickerState.minute < 10) "0${timePickerState.minute}" else "${timePickerState.minute}"
                             time = "$hour:$minute"
                             showTimePicker = false
                         }) { Text("OK") }
@@ -122,7 +203,7 @@ fun AddEntryScreen(
                         "New Entry",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            color = PrimaryBlue
+                            color = MaterialTheme.colorScheme.primary
                         )
                     )
                 },
@@ -131,14 +212,16 @@ fun AddEntryScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = PrimaryBlue
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
-        containerColor = BackgroundLight
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -152,14 +235,16 @@ fun AddEntryScreen(
                 text = "Ride Details",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold,
-                    color = DarkGrey
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             )
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -180,7 +265,16 @@ fun AddEntryScreen(
                         label = "Phone Number",
                         icon = Icons.Default.Phone,
                         placeholder = "10-digit number",
-                        keyboardType = KeyboardType.Phone
+                        keyboardType = KeyboardType.Phone,
+                        trailingIcon = {
+                            IconButton(onClick = { contactLauncher.launch(null) }) {
+                                Icon(
+                                    Icons.Default.ContactPage,
+                                    contentDescription = "Pick Contact",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -209,7 +303,7 @@ fun AddEntryScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CustomTextField(
                             value = rideCount,
-                            onValueChange = { 
+                            onValueChange = {
                                 rideCount = it
                                 it.toIntOrNull()?.let { count ->
                                     amount = (count * 100).toString()
@@ -266,8 +360,8 @@ fun AddEntryScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryBlue,
-                    disabledContainerColor = PrimaryBlue.copy(alpha = 0.5f)
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                 ),
                 enabled = isFormValid
             ) {
@@ -275,7 +369,7 @@ fun AddEntryScreen(
                     "Save Entry",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 )
             }
@@ -293,6 +387,7 @@ fun CustomTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     readOnly: Boolean = false,
     onClick: (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -300,7 +395,7 @@ fun CustomTextField(
             text = label,
             style = MaterialTheme.typography.bodySmall.copy(
                 fontWeight = FontWeight.Medium,
-                color = LightGrey
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             ),
             modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
         )
@@ -312,20 +407,33 @@ fun CustomTextField(
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                placeholder = { Text(placeholder, color = LightGrey.copy(alpha = 0.5f)) },
-                leadingIcon = { Icon(icon, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(20.dp)) },
+                placeholder = {
+                    Text(
+                        placeholder,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                trailingIcon = trailingIcon,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = SecondaryBlue,
-                    focusedBorderColor = PrimaryBlue,
-                    unfocusedContainerColor = BackgroundLight.copy(alpha = 0.3f),
-                    focusedContainerColor = Color.White,
-                    disabledBorderColor = SecondaryBlue,
-                    disabledTextColor = DarkGrey,
-                    disabledPlaceholderColor = LightGrey.copy(alpha = 0.5f),
-                    disabledLeadingIconColor = PrimaryBlue
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline
                 ),
                 singleLine = true,
                 readOnly = readOnly,
